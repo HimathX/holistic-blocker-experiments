@@ -1,0 +1,406 @@
+import os
+import json
+import subprocess
+
+import streamlit as st
+import plotly.graph_objects as go
+
+# ── Constants ────────────────────────────────────────────────────────────────
+ROOT = os.path.dirname(os.path.abspath(__file__))
+BLUE = "#4A90D9"
+RED = "#E74C3C"
+GREEN = "#27AE60"
+YELLOW = "#F39C12"
+CHART_LAYOUT = dict(
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    font=dict(family="sans-serif", size=13),
+    margin=dict(l=40, r=40, t=50, b=40),
+)
+
+
+# ── Page config ──────────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="Holistic Blocker Understanding — Results Dashboard",
+    page_icon="🧠",
+    layout="wide",
+)
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+def load_results(experiment_num):
+    path = os.path.join(ROOT, f"experiment_{experiment_num}", "results.json")
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f)
+
+
+def status_indicator(exp_num, data):
+    if data is None:
+        return f"⚪ Experiment {exp_num}: No data"
+    return f"🟢 Experiment {exp_num}: PASS" if data.get("pass") else f"🔴 Experiment {exp_num}: FAIL"
+
+
+def no_data_msg():
+    st.info("No results yet. Click **Re-run All Experiments** in the sidebar.")
+
+
+def badge(passed):
+    color = GREEN if passed else RED
+    label = "PASS" if passed else "FAIL"
+    return f'<span style="background:{color};color:white;padding:4px 12px;border-radius:4px;font-weight:bold">{label}</span>'
+
+
+# ── Sidebar ───────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.title("Logical AI Copilot")
+    st.caption("Take-home Interview Assignment")
+    st.divider()
+
+    r1 = load_results(1)
+    r2 = load_results(2)
+    r3 = load_results(3)
+
+    st.markdown(status_indicator(1, r1))
+    st.markdown(status_indicator(2, r2))
+    st.markdown(status_indicator(3, r3))
+
+    st.divider()
+
+    if st.button("▶  Re-run All Experiments", use_container_width=True):
+        with st.spinner("Running all experiments… this may take a minute."):
+            subprocess.run(
+                ["uv", "run", "python", "run_all.py"],
+                cwd=ROOT,
+                capture_output=False,
+            )
+        st.rerun()
+
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+st.title("Holistic Blocker Understanding — Results Dashboard")
+
+tab1, tab2, tab3 = st.tabs(["Experiment 1", "Experiment 2", "Experiment 3"])
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 1 — Coreference Linking
+# ════════════════════════════════════════════════════════════════════════════
+with tab1:
+    data = load_results(1)
+    if data is None:
+        no_data_msg()
+    else:
+        left, right = st.columns([4, 6])
+
+        with left:
+            st.subheader("Coreference Linking Accuracy")
+            st.caption("Can the system link the same bug across different channels?")
+            st.metric(
+                label="Semantic vs Token Overlap",
+                value=f"{data['key_metric'] * 100:.1f}%",
+                delta=f"{(data['key_metric'] - data['baseline_metric']) * 100:+.1f}% vs baseline",
+            )
+
+            st.markdown("**Mock messages used:**")
+            msg_rows = [
+                {"Channel": "discord", "Message": "NullPointerException at auth_service.py line 142, uid=None"},
+                {"Channel": "email", "Message": "Users cannot log in at all since this morning, totally broken"},
+                {"Channel": "slack", "Message": "Reverted PR #4421 — broke the authentication pipeline"},
+                {"Channel": "jira", "Message": "UI misalignment on the dashboard widget for Safari v17"},
+            ]
+            rows_display = [{"Channel": r["Channel"], "Message": r["Message"][:50] + "…"} for r in msg_rows]
+            st.dataframe(rows_display, use_container_width=True, hide_index=True)
+
+        with right:
+            pairs = data.get("pairs", [])
+            pair_labels = [p["pair"] for p in pairs]
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                name="Baseline (Token Overlap)",
+                x=pair_labels,
+                y=[p["baseline_score"] for p in pairs],
+                marker_color=RED,
+            ))
+            fig.add_trace(go.Bar(
+                name="Semantic (Embedding)",
+                x=pair_labels,
+                y=[p["semantic_score"] for p in pairs],
+                marker_color=BLUE,
+            ))
+            fig.add_hline(y=0.72, line_dash="dash", line_color=YELLOW,
+                          annotation_text="Threshold 0.72", annotation_position="top right")
+            fig.update_layout(
+                title="Similarity Scores by Method",
+                barmode="group",
+                yaxis=dict(title="Score", range=[0, 1]),
+                **CHART_LAYOUT,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Results table with color
+            def color_result(correct):
+                return "background-color: #d4edda" if correct else "background-color: #f8d7da"
+
+            table_data = []
+            for p in pairs:
+                table_data.append({
+                    "Pair": p["pair"],
+                    "Baseline Score": f"{p['baseline_score']:.4f}",
+                    "Baseline Result": "CORRECT" if p["baseline_correct"] else "WRONG",
+                    "Semantic Score": f"{p['semantic_score']:.4f}",
+                    "Semantic Result": "CORRECT" if p["semantic_correct"] else "WRONG",
+                    "_b_correct": p["baseline_correct"],
+                    "_s_correct": p["semantic_correct"],
+                })
+
+            import pandas as pd
+            df = pd.DataFrame(table_data)
+
+            def style_row(row):
+                styles = [""] * len(row)
+                idx = list(row.index)
+                b_c = row["_b_correct"]
+                s_c = row["_s_correct"]
+                styles[idx.index("Baseline Result")] = f"background-color: {'#d4edda' if b_c else '#f8d7da'}"
+                styles[idx.index("Semantic Result")] = f"background-color: {'#d4edda' if s_c else '#f8d7da'}"
+                return styles
+
+            display_df = df.drop(columns=["_b_correct", "_s_correct"])
+            st.dataframe(
+                display_df.style.apply(style_row, axis=1),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 2 — Two-Stage Context Paging
+# ════════════════════════════════════════════════════════════════════════════
+with tab2:
+    data = load_results(2)
+    if data is None:
+        no_data_msg()
+    else:
+        left, right = st.columns([4, 6])
+
+        with left:
+            st.subheader("Two-Stage Context Paging")
+            st.caption("How few candidates do we need before calling the LLM?")
+
+            m1, m2 = st.columns(2)
+            sweet_k = data.get("sweet_spot_k")
+            sweet_budget = data.get("token_budget_at_sweet_spot")
+            m1.metric("Sweet spot k", f"k = {sweet_k}" if sweet_k else "None found")
+            m2.metric("Token budget at sweet spot", f"{sweet_budget}%" if sweet_budget is not None else "—")
+
+            with st.container(border=True):
+                st.markdown(
+                    "**Stage 1** uses cheap vector search to narrow 20 bugs down to **k candidates**. "
+                    "**Stage 2** sends only those k candidates to the LLM. "
+                    "This avoids the O(n²) token cost of reading everything."
+                )
+
+        with right:
+            k_results = data.get("k_results", [])
+            k_vals = [r["k"] for r in k_results]
+            acc_vals = [100.0 if r["correct"] else 0.0 for r in k_results]
+            budget_vals = [r["budget_pct"] for r in k_results]
+
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=k_vals, y=acc_vals, mode="lines+markers",
+                name="Accuracy %", line=dict(color=BLUE, width=2),
+                marker=dict(size=8),
+            ))
+            fig.add_trace(go.Scatter(
+                x=k_vals, y=budget_vals, mode="lines+markers",
+                name="Token Budget %", line=dict(color=RED, width=2, dash="dash"),
+                marker=dict(size=8),
+            ))
+            if sweet_k:
+                fig.add_vline(x=sweet_k, line_dash="dot", line_color=YELLOW,
+                              annotation_text=f"Sweet spot k={sweet_k}", annotation_position="top right")
+            fig.update_layout(
+                title="Accuracy vs Token Budget Trade-off",
+                xaxis=dict(title="k (candidates)", tickvals=k_vals),
+                yaxis=dict(title="%", range=[-5, 110]),
+                **CHART_LAYOUT,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            import pandas as pd
+
+            def style_k_table(row):
+                styles = [""] * len(row)
+                if row["k"] == sweet_k:
+                    styles = [f"background-color: #fff3cd"] * len(row)
+                idx = list(row.index)
+                pass_val = row["Pass"]
+                styles[idx.index("Pass")] = f"background-color: {'#d4edda' if pass_val == 'PASS' else '#f8d7da'}"
+                return styles
+
+            table_rows = []
+            for r in k_results:
+                table_rows.append({
+                    "k": r["k"],
+                    "Stage1 Hit": "YES" if r["stage1_hit"] else "NO",
+                    "Correct": "YES" if r["correct"] else "NO",
+                    "Budget %": f"{r['budget_pct']:.1f}%",
+                    "Pass": "PASS" if r["pass"] else "FAIL",
+                })
+            df2 = pd.DataFrame(table_rows)
+            st.dataframe(
+                df2.style.apply(style_k_table, axis=1),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 3 — Split-Brain Conflict Resolution
+# ════════════════════════════════════════════════════════════════════════════
+with tab3:
+    data = load_results(3)
+    if data is None:
+        no_data_msg()
+    else:
+        left, right = st.columns([4, 6])
+
+        with left:
+            st.subheader("Split-Brain Conflict Resolution")
+            st.caption("GitHub API vs LLM majority voting when Slack and Discord disagree")
+
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Deterministic accuracy", f"{data['deterministic_accuracy'] * 100:.1f}%")
+            m2.metric("Majority vote accuracy", f"{data['majority_vote_accuracy'] * 100:.1f}%")
+            m3.metric("MV hallucination rate (conflicts)", f"{data['mv_hallucination_rate_on_conflicts'] * 100:.1f}%")
+
+            st.divider()
+            conf = data["conflict_scenarios"]
+            total = data["total_scenarios"]
+            mv_wrong_on_conflict = round(data["mv_hallucination_rate_on_conflicts"] * conf)
+            st.markdown(f"**{conf} out of {total}** scenarios had conflicts")
+            st.markdown("**Deterministic** resolved all conflicts correctly")
+            st.markdown(f"**Majority vote** got **{mv_wrong_on_conflict}** wrong on conflict cases")
+
+        with right:
+            scenarios = data.get("scenarios", [])
+            sc_labels = [f"Scenario {s['id']}" for s in scenarios]
+
+            mv_colors = [GREEN if s["mv_correct"] else RED for s in scenarios]
+            det_colors = [GREEN if s["det_correct"] else RED for s in scenarios]
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                name="Majority Vote",
+                x=sc_labels,
+                y=[1] * len(scenarios),
+                marker_color=mv_colors,
+                text=[s["mv_decision"] for s in scenarios],
+                textposition="inside",
+            ))
+            fig.add_trace(go.Bar(
+                name="Deterministic",
+                x=sc_labels,
+                y=[1] * len(scenarios),
+                marker_color=det_colors,
+                text=[s["det_decision"] for s in scenarios],
+                textposition="inside",
+            ))
+            fig.update_layout(
+                title="Decision Accuracy by Scenario",
+                barmode="group",
+                yaxis=dict(showticklabels=False, title=""),
+                **CHART_LAYOUT,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            import pandas as pd
+
+            def style_sc_table(row):
+                styles = [""] * len(row)
+                idx = list(row.index)
+                mvc = row["MV Correct"]
+                dc = row["Det Correct"]
+                styles[idx.index("MV Correct")] = f"background-color: {'#d4edda' if mvc == '✓' else '#f8d7da'}"
+                styles[idx.index("Det Correct")] = f"background-color: {'#d4edda' if dc == '✓' else '#f8d7da'}"
+                return styles
+
+            table_rows = []
+            for s in scenarios:
+                table_rows.append({
+                    "Scenario": s["id"],
+                    "Description": s["description"],
+                    "Conflict": "YES" if s["conflict_detected"] else "NO",
+                    "MV Decision": s["mv_decision"],
+                    "MV Correct": "✓" if s["mv_correct"] else "✗",
+                    "Det Decision": s["det_decision"],
+                    "Det Correct": "✓" if s["det_correct"] else "✗",
+                })
+            df3 = pd.DataFrame(table_rows)
+            st.dataframe(
+                df3.style.apply(style_sc_table, axis=1),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BOTTOM — Overall Hypothesis Validation
+# ════════════════════════════════════════════════════════════════════════════
+st.divider()
+st.subheader("Overall Hypothesis Validation")
+
+r1 = load_results(1)
+r2 = load_results(2)
+r3 = load_results(3)
+
+c1, c2, c3 = st.columns(3)
+
+with c1:
+    with st.container(border=True):
+        st.markdown("### Blackboard Coreference Hypothesis")
+        if r1:
+            st.markdown(badge(r1["pass"]), unsafe_allow_html=True)
+            st.metric("Semantic Accuracy", f"{r1['key_metric'] * 100:.1f}%")
+            st.markdown(
+                "Semantic embeddings correctly linked the same bug across Discord, "
+                "Email, and Slack even when the wording was completely different."
+            )
+        else:
+            st.info("No data yet.")
+        st.caption("Based on: Zhukova et al. (2026) NewsWCL50r")
+
+with c2:
+    with st.container(border=True):
+        st.markdown("### Two-Stage Context Paging Hypothesis")
+        if r2:
+            st.markdown(badge(r2["pass"]), unsafe_allow_html=True)
+            sweet_k = r2.get("sweet_spot_k")
+            budget = r2.get("token_budget_at_sweet_spot")
+            st.metric("Sweet Spot", f"k = {sweet_k}" if sweet_k else "Not found")
+            st.markdown(
+                f"Vector pre-filtering found the correct bug at k={sweet_k} "
+                f"using only {budget}% of the full LLM token budget."
+            )
+        else:
+            st.info("No data yet.")
+        st.caption("Based on: RAG top-k retrieval & token-budget compression literature")
+
+with c3:
+    with st.container(border=True):
+        st.markdown("### Deterministic Grounding Hypothesis")
+        if r3:
+            st.markdown(badge(r3["pass"]), unsafe_allow_html=True)
+            st.metric("Deterministic Accuracy", f"{r3['deterministic_accuracy'] * 100:.1f}%")
+            st.markdown(
+                "Calling the GitHub deploy API eliminated all ambiguity in conflict cases, "
+                f"while majority-vote LLM guessing had a "
+                f"{r3['mv_hallucination_rate_on_conflicts'] * 100:.0f}% hallucination rate."
+            )
+        else:
+            st.info("No data yet.")
+        st.caption("Based on: Schick et al. (2023) Toolformer; Yao et al. (2023) ReAct")

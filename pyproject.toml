@@ -1,0 +1,14 @@
+[project]
+name = "holistic-blocker"
+version = "0.1.0"
+description = "Holistic Blocker Understanding — NLP entity resolution across fragmented channels"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "sentence-transformers==2.7.0",
+    "numpy",
+    "scikit-learn",
+    "colorama",
+    "streamlit",
+    "plotly",
+]

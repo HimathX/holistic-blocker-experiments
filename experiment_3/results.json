@@ -1,0 +1,92 @@
+{
+  "experiment": "Split-Brain Conflict Resolution",
+  "hypothesis": "Deterministic Grounding Hypothesis",
+  "pass": true,
+  "deterministic_accuracy": 1.0,
+  "majority_vote_accuracy": 0.5,
+  "mv_hallucination_rate_on_conflicts": 0.6667,
+  "total_scenarios": 8,
+  "conflict_scenarios": 6,
+  "scenarios": [
+    {
+      "id": 1,
+      "description": "Dev closed ticket early but deploy failed silently",
+      "conflict_detected": true,
+      "mv_decision": "fixed",
+      "mv_correct": false,
+      "det_decision": "broken",
+      "det_correct": true,
+      "tool_called": true
+    },
+    {
+      "id": 2,
+      "description": "Deploy succeeded, Discord user had cached old page",
+      "conflict_detected": true,
+      "mv_decision": "fixed",
+      "mv_correct": true,
+      "det_decision": "fixed",
+      "det_correct": true,
+      "tool_called": true
+    },
+    {
+      "id": 3,
+      "description": "Discord user tested wrong environment",
+      "conflict_detected": true,
+      "mv_decision": "fixed",
+      "mv_correct": false,
+      "det_decision": "broken",
+      "det_correct": true,
+      "tool_called": true
+    },
+    {
+      "id": 4,
+      "description": "No conflict, both agree it is broken",
+      "conflict_detected": false,
+      "mv_decision": "broken",
+      "mv_correct": true,
+      "det_decision": "broken",
+      "det_correct": true,
+      "tool_called": false
+    },
+    {
+      "id": 5,
+      "description": "No conflict, both agree it is fixed",
+      "conflict_detected": false,
+      "mv_decision": "fixed",
+      "mv_correct": true,
+      "det_decision": "fixed",
+      "det_correct": true,
+      "tool_called": false
+    },
+    {
+      "id": 6,
+      "description": "Deploy succeeded, Discord user reporting unrelated issue",
+      "conflict_detected": true,
+      "mv_decision": "fixed",
+      "mv_correct": true,
+      "det_decision": "fixed",
+      "det_correct": true,
+      "tool_called": true
+    },
+    {
+      "id": 7,
+      "description": "Slack dev forgot to update after hotfix deployed",
+      "conflict_detected": true,
+      "mv_decision": "broken",
+      "mv_correct": false,
+      "det_decision": "fixed",
+      "det_correct": true,
+      "tool_called": true
+    },
+    {
+      "id": 8,
+      "description": "Rollback happened after Slack message was sent",
+      "conflict_detected": true,
+      "mv_decision": "fixed",
+      "mv_correct": false,
+      "det_decision": "broken",
+      "det_correct": true,
+      "tool_called": true
+    }
+  ]
+}

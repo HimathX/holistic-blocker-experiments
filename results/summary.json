@@ -1,0 +1,28 @@
+{
+  "experiments": [
+    {
+      "id": 1,
+      "name": "Coreference Linking",
+      "hypothesis": "Blackboard Coreference Hypothesis",
+      "pass": true,
+      "key_metric": 1.0,
+      "key_metric_label": "Semantic Accuracy"
+    },
+    {
+      "id": 2,
+      "name": "Two-Stage Context Paging",
+      "hypothesis": "Two-Stage Context Paging Hypothesis",
+      "pass": true,
+      "sweet_spot_k": 1,
+      "token_budget_at_sweet_spot": 5.0
+    },
+    {
+      "id": 3,
+      "name": "Split-Brain Conflict Resolution",
+      "hypothesis": "Deterministic Grounding Hypothesis",
+      "pass": true,
+      "deterministic_accuracy": 1.0,
+      "majority_vote_accuracy": 0.5
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "experiment": "Two-Stage Context Paging",
+  "hypothesis": "Two-Stage Context Paging Hypothesis",
+  "pass": true,
+  "sweet_spot_k": 1,
+  "token_budget_at_sweet_spot": 5.0,
+  "full_budget_tokens": 3000,
+  "k_results": [
+    {
+      "k": 1,
+      "stage1_hit": true,
+      "correct": true,
+      "budget_pct": 5.0,
+      "pass": true
+    },
+    {
+      "k": 3,
+      "stage1_hit": true,
+      "correct": true,
+      "budget_pct": 15.0,
+      "pass": false
+    },
+    {
+      "k": 5,
+      "stage1_hit": true,
+      "correct": true,
+      "budget_pct": 25.0,
+      "pass": false
+    },
+    {
+      "k": 10,
+      "stage1_hit": true,
+      "correct": true,
+      "budget_pct": 50.0,
+      "pass": false
+    },
+    {
+      "k": 15,
+      "stage1_hit": true,
+      "correct": true,
+      "budget_pct": 75.0,
+      "pass": false
+    },
+    {
+      "k": 20,
+      "stage1_hit": true,
+      "correct": true,
+      "budget_pct": 100.0,
+      "pass": false
+    }
+  ]
+}
