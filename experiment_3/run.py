@@ -25,20 +25,19 @@ init(autoreset=True)
 load_dotenv()
 
 RESULTS_PATH = os.path.join(os.path.dirname(__file__), "results.json")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# Configure Gemini if key is available
-_gemini_model = None
-if GEMINI_API_KEY:
+# Configure Groq if key is available
+_groq_client = None
+if GROQ_API_KEY:
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        _gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-        print(Fore.GREEN + "  Gemini API configured successfully.")
+        from groq import Groq
+        _groq_client = Groq(api_key=GROQ_API_KEY)
+        print(Fore.GREEN + "  Groq API configured successfully.")
     except Exception as e:
-        print(Fore.YELLOW + f"  Warning: Gemini setup failed ({e}). Will use fallback.")
+        print(Fore.YELLOW + f"  Warning: Groq setup failed ({e}). Will use fallback.")
 else:
-    print(Fore.YELLOW + "  Warning: GEMINI_API_KEY not set. Using random fallback for majority vote.")
+    print(Fore.YELLOW + "  Warning: GROQ_API_KEY not set. Using random fallback for majority vote.")
 
 conflict_scenarios = [
     {
@@ -108,8 +107,8 @@ conflict_scenarios = [
 ]
 
 
-def _call_gemini(slack, discord):
-    """Call Gemini Flash with the two conflicting signals. Returns (decision, raw_response)."""
+def _call_groq(slack, discord):
+    """Call Groq with the two conflicting signals. Returns (decision, raw_response)."""
     prompt = (
         "You are a software incident triage assistant.\n\n"
         f'Slack reports: "{slack}"\n'
@@ -118,12 +117,15 @@ def _call_gemini(slack, discord):
         "Based only on this information, what is your best assessment of the current status?\n\n"
         'Reply with exactly one word: either "fixed" or "broken".'
     )
-    response = _gemini_model.generate_content(prompt)
-    raw = response.text.strip()
+    response = _groq_client.chat.completions.create(
+        messages=[{"role": "user", "content": prompt}],
+        model="llama-3.3-70b-versatile",
+    )
+    raw = response.choices[0].message.content.strip()
     decision = raw.lower().strip().rstrip(".")
     if decision not in ("fixed", "broken"):
-        # If Gemini didn't follow instructions, default to slack's value
-        print(Fore.YELLOW + f"      [Gemini parse warning: got '{raw}', defaulting to slack='{slack}']")
+        # If Groq didn't follow instructions, default to slack's value
+        print(Fore.YELLOW + f"      [Groq parse warning: got '{raw}', defaulting to slack='{slack}']")
         decision = slack
     return decision, raw
 
@@ -134,22 +136,22 @@ def majority_vote_resolver(slack, discord):
             "decision": slack,
             "method": "majority_vote",
             "conflict_detected": False,
-            "gemini_raw": None,
+            "groq_raw": None,
         }
 
-    # True conflict — ask Gemini (or fall back to random if no key)
-    if _gemini_model is not None:
+    # True conflict — ask Groq (or fall back to random if no key)
+    if _groq_client is not None:
         try:
-            decision, raw = _call_gemini(slack, discord)
-            print(Fore.CYAN + f"      [Gemini raw response: \"{raw}\"]")
+            decision, raw = _call_groq(slack, discord)
+            print(Fore.CYAN + f"      [Groq raw response: \"{raw}\"]")
             return {
                 "decision": decision,
-                "method": "majority_vote_gemini",
+                "method": "majority_vote_groq",
                 "conflict_detected": True,
-                "gemini_raw": raw,
+                "groq_raw": raw,
             }
         except Exception as e:
-            print(Fore.YELLOW + f"      [Gemini call failed: {e}. Falling back to random.]")
+            print(Fore.YELLOW + f"      [Groq call failed: {e}. Falling back to random.]")
 
     # Fallback: random with seed
     import random
@@ -159,7 +161,7 @@ def majority_vote_resolver(slack, discord):
         "decision": decision,
         "method": "majority_vote_fallback",
         "conflict_detected": True,
-        "gemini_raw": None,
+        "groq_raw": None,
     }
 
 
@@ -217,7 +219,7 @@ def run_experiment3():
         else:
             print(f"    Conflict detected: NO (both say {sc['slack']})")
 
-        mv_method_label = "Gemini LLM" if "gemini" in mv.get("method", "") else "Majority Vote"
+        mv_method_label = "Groq LLM" if "groq" in mv.get("method", "") else "Majority Vote"
         mv_str = (Fore.GREEN + f"{mv['decision']:6s}  ✓ CORRECT") if mv_correct else (Fore.RED + f"{mv['decision']:6s}  ✗ WRONG")
         det_str = (Fore.GREEN + f"{det['decision']:6s}  ✓ CORRECT") if det_correct else (Fore.RED + f"{det['decision']:6s}  ✗ WRONG")
         tool_note = Fore.CYAN + "  [GitHub tool called]" if det.get("tool_called") else ""
@@ -233,7 +235,7 @@ def run_experiment3():
             "mv_decision": mv["decision"],
             "mv_correct": mv_correct,
             "mv_method": mv.get("method"),
-            "gemini_raw": mv.get("gemini_raw"),
+            "groq_raw": mv.get("groq_raw"),
             "det_decision": det["decision"],
             "det_correct": det_correct,
             "tool_called": det.get("tool_called", False),
@@ -244,8 +246,8 @@ def run_experiment3():
     det_acc = det_correct_total / total
     mv_hallucination_rate = (conflict_count - mv_correct_on_conflict) / conflict_count if conflict_count > 0 else 0.0
 
-    using_gemini = _gemini_model is not None
-    method_label = "Gemini LLM" if using_gemini else "Majority Vote (fallback)"
+    using_groq = _groq_client is not None
+    method_label = "Groq LLM" if using_groq else "Majority Vote (fallback)"
 
     print(Fore.YELLOW + "  ── Final Scores ──")
     print(f"  {method_label} overall accuracy:    {mv_acc * 100:.1f}%")
@@ -266,7 +268,7 @@ def run_experiment3():
         "experiment": "Split-Brain Conflict Resolution",
         "hypothesis": "Deterministic Grounding Hypothesis",
         "pass": passed,
-        "mv_method": "gemini-1.5-flash" if using_gemini else "random_fallback",
+        "mv_method": "llama-3.3-70b-versatile" if using_groq else "random_fallback",
         "deterministic_accuracy": round(det_acc, 4),
         "majority_vote_accuracy": round(mv_acc, 4),
         "mv_hallucination_rate_on_conflicts": round(mv_hallucination_rate, 4),

@@ -13,4 +13,5 @@ dependencies = [
     "plotly",
     "google-generativeai",
     "python-dotenv",
+    "groq>=1.1.2",
 ]

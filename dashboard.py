@@ -68,7 +68,7 @@ with st.sidebar:
 
     st.divider()
 
-    if st.button("▶  Re-run All Experiments", use_container_width=True):
+    if st.button("▶  Re-run All Experiments", width="stretch"):
         with st.spinner("Running all experiments… this may take a minute."):
             subprocess.run(
                 ["uv", "run", "python", "run_all.py"],
@@ -120,7 +120,7 @@ with tab1:
                 {"Channel": "jira_ui",        "Bug": "BUG_C", "Message": "UI misalignment on the dashboard widget for Safari v17"},
             ]
             rows_display = [{"Channel": r["Channel"], "Bug": r["Bug"], "Message": r["Message"][:48] + "…"} for r in msg_rows]
-            st.dataframe(rows_display, use_container_width=True, hide_index=True)
+            st.dataframe(rows_display, width="stretch", hide_index=True)
 
         with right:
             pairs = data.get("pairs", [])
@@ -177,7 +177,7 @@ with tab1:
             ),
             margin=dict(l=40, r=40, t=50, b=160),
         )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             # Results table with color
             def color_result(correct):
@@ -210,7 +210,7 @@ with tab1:
             display_df = df.drop(columns=["_b_correct", "_s_correct"])
             st.dataframe(
                 display_df.style.apply(style_row, axis=1),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -274,7 +274,7 @@ with tab2:
 
             st.dataframe(
                 bug_df.style.apply(highlight_true_match, axis=1),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 height=280,
             )
@@ -336,7 +336,7 @@ with tab2:
                 legend=dict(font=dict(color="black")),
                 margin=dict(l=40, r=40, t=50, b=40),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             import pandas as pd
 
@@ -361,7 +361,7 @@ with tab2:
             df2 = pd.DataFrame(table_rows)
             st.dataframe(
                 df2.style.apply(style_k_table, axis=1),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -445,7 +445,7 @@ with tab3:
                 legend=dict(font=dict(color="black")),
                 margin=dict(l=40, r=40, t=50, b=40),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             import pandas as pd
 
@@ -472,7 +472,7 @@ with tab3:
             df3 = pd.DataFrame(table_rows)
             st.dataframe(
                 df3.style.apply(style_sc_table, axis=1),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
