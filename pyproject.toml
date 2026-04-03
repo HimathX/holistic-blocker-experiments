@@ -11,4 +11,6 @@ dependencies = [
     "colorama",
     "streamlit",
     "plotly",
+    "google-generativeai",
+    "python-dotenv",
 ]

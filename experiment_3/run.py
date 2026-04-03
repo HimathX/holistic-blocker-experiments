@@ -3,8 +3,8 @@
 # Hypothesis: Deterministic Grounding Hypothesis
 # Claim: When Slack and Discord disagree about a bug's status, a
 #        deterministic resolver that calls a ground-truth tool (GitHub API)
-#        achieves near-perfect accuracy, while majority-vote LLM approaches
-#        have high hallucination rates on conflict cases.
+#        achieves near-perfect accuracy, while an LLM given only the two
+#        conflicting messages has a high error rate on conflict cases.
 #
 # Based on: Tool-augmented LLM literature (Schick et al. 2023 Toolformer;
 #           ReAct — Yao et al. 2023) on grounding LLM decisions with
@@ -14,18 +14,31 @@ import os
 import json
 import sys
 import io
-import random
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
+from dotenv import load_dotenv
 from colorama import init, Fore, Style
 
 init(autoreset=True)
-
-random.seed(42)
+load_dotenv()
 
 RESULTS_PATH = os.path.join(os.path.dirname(__file__), "results.json")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Configure Gemini if key is available
+_gemini_model = None
+if GEMINI_API_KEY:
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=GEMINI_API_KEY)
+        _gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+        print(Fore.GREEN + "  Gemini API configured successfully.")
+    except Exception as e:
+        print(Fore.YELLOW + f"  Warning: Gemini setup failed ({e}). Will use fallback.")
+else:
+    print(Fore.YELLOW + "  Warning: GEMINI_API_KEY not set. Using random fallback for majority vote.")
 
 conflict_scenarios = [
     {
@@ -94,29 +107,59 @@ conflict_scenarios = [
     },
 ]
 
-# Pre-generate the random choices upfront so seed=42 is deterministic
-# regardless of how many times we call the resolver.
-_rng = random.Random(42)
-_conflict_random_choices = [_rng.choice(["slack", "discord"]) for _ in range(20)]
-_conflict_call_count = 0
+
+def _call_gemini(slack, discord):
+    """Call Gemini Flash with the two conflicting signals. Returns (decision, raw_response)."""
+    prompt = (
+        "You are a software incident triage assistant.\n\n"
+        f'Slack reports: "{slack}"\n'
+        f'Discord reports: "{discord}"\n\n'
+        "These two channels disagree about whether a bug is currently fixed or broken.\n"
+        "Based only on this information, what is your best assessment of the current status?\n\n"
+        'Reply with exactly one word: either "fixed" or "broken".'
+    )
+    response = _gemini_model.generate_content(prompt)
+    raw = response.text.strip()
+    decision = raw.lower().strip().rstrip(".")
+    if decision not in ("fixed", "broken"):
+        # If Gemini didn't follow instructions, default to slack's value
+        print(Fore.YELLOW + f"      [Gemini parse warning: got '{raw}', defaulting to slack='{slack}']")
+        decision = slack
+    return decision, raw
 
 
 def majority_vote_resolver(slack, discord):
-    global _conflict_call_count
     if slack == discord:
         return {
             "decision": slack,
             "method": "majority_vote",
             "conflict_detected": False,
+            "gemini_raw": None,
         }
-    # True conflict — simulate LLM confusion with seeded random
-    choice = _conflict_random_choices[_conflict_call_count % len(_conflict_random_choices)]
-    _conflict_call_count += 1
-    decision = slack if choice == "slack" else discord
+
+    # True conflict — ask Gemini (or fall back to random if no key)
+    if _gemini_model is not None:
+        try:
+            decision, raw = _call_gemini(slack, discord)
+            print(Fore.CYAN + f"      [Gemini raw response: \"{raw}\"]")
+            return {
+                "decision": decision,
+                "method": "majority_vote_gemini",
+                "conflict_detected": True,
+                "gemini_raw": raw,
+            }
+        except Exception as e:
+            print(Fore.YELLOW + f"      [Gemini call failed: {e}. Falling back to random.]")
+
+    # Fallback: random with seed
+    import random
+    rng = random.Random(42)
+    decision = rng.choice([slack, discord])
     return {
         "decision": decision,
-        "method": "majority_vote",
+        "method": "majority_vote_fallback",
         "conflict_detected": True,
+        "gemini_raw": None,
     }
 
 
@@ -128,7 +171,6 @@ def deterministic_grounded_resolver(slack, discord, github):
             "conflict_detected": False,
             "tool_called": False,
         }
-    # Conflict — call the GitHub tool
     decision = "broken" if github == "FAILED" else "fixed"
     return {
         "decision": decision,
@@ -139,9 +181,6 @@ def deterministic_grounded_resolver(slack, discord, github):
 
 
 def run_experiment3():
-    global _conflict_call_count
-    _conflict_call_count = 0  # reset for reproducibility
-
     print(Fore.YELLOW + Style.BRIGHT + "\n" + "═" * 52)
     print(Fore.YELLOW + Style.BRIGHT + "  EXPERIMENT 3: Split-Brain Conflict Resolution")
     print(Fore.YELLOW + Style.BRIGHT + "═" * 52)
@@ -178,11 +217,12 @@ def run_experiment3():
         else:
             print(f"    Conflict detected: NO (both say {sc['slack']})")
 
+        mv_method_label = "Gemini LLM" if "gemini" in mv.get("method", "") else "Majority Vote"
         mv_str = (Fore.GREEN + f"{mv['decision']:6s}  ✓ CORRECT") if mv_correct else (Fore.RED + f"{mv['decision']:6s}  ✗ WRONG")
         det_str = (Fore.GREEN + f"{det['decision']:6s}  ✓ CORRECT") if det_correct else (Fore.RED + f"{det['decision']:6s}  ✗ WRONG")
         tool_note = Fore.CYAN + "  [GitHub tool called]" if det.get("tool_called") else ""
 
-        print(f"    Majority Vote:     {mv_str}{Style.RESET_ALL}")
+        print(f"    {mv_method_label}:       {mv_str}{Style.RESET_ALL}")
         print(f"    Deterministic:     {det_str}{Style.RESET_ALL}{tool_note}")
         print()
 
@@ -192,6 +232,8 @@ def run_experiment3():
             "conflict_detected": has_conflict,
             "mv_decision": mv["decision"],
             "mv_correct": mv_correct,
+            "mv_method": mv.get("method"),
+            "gemini_raw": mv.get("gemini_raw"),
             "det_decision": det["decision"],
             "det_correct": det_correct,
             "tool_called": det.get("tool_called", False),
@@ -202,12 +244,15 @@ def run_experiment3():
     det_acc = det_correct_total / total
     mv_hallucination_rate = (conflict_count - mv_correct_on_conflict) / conflict_count if conflict_count > 0 else 0.0
 
+    using_gemini = _gemini_model is not None
+    method_label = "Gemini LLM" if using_gemini else "Majority Vote (fallback)"
+
     print(Fore.YELLOW + "  ── Final Scores ──")
-    print(f"  Majority Vote overall accuracy:          {mv_acc * 100:.1f}%")
+    print(f"  {method_label} overall accuracy:    {mv_acc * 100:.1f}%")
     print(f"  Deterministic Resolver overall accuracy: {det_acc * 100:.1f}%")
     print()
     print(f"  On conflict-only cases ({conflict_count} scenarios):")
-    print(f"  Majority Vote hallucination rate: {mv_hallucination_rate * 100:.1f}%")
+    print(f"  {method_label} error rate on conflicts: {mv_hallucination_rate * 100:.1f}%")
     print()
 
     passed = det_acc >= 0.99 and mv_hallucination_rate >= 0.30
@@ -221,6 +266,7 @@ def run_experiment3():
         "experiment": "Split-Brain Conflict Resolution",
         "hypothesis": "Deterministic Grounding Hypothesis",
         "pass": passed,
+        "mv_method": "gemini-1.5-flash" if using_gemini else "random_fallback",
         "deterministic_accuracy": round(det_acc, 4),
         "majority_vote_accuracy": round(mv_acc, 4),
         "mv_hallucination_rate_on_conflicts": round(mv_hallucination_rate, 4),

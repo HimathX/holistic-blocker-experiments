@@ -235,11 +235,61 @@ with tab2:
             m1.metric("Sweet spot k", f"k = {sweet_k}" if sweet_k else "None found")
             m2.metric("Token budget at sweet spot", f"{sweet_budget}%" if sweet_budget is not None else "—")
 
+            st.markdown("**Incoming message:**")
             with st.container(border=True):
                 st.markdown(
-                    "**Stage 1** uses cheap vector search to narrow 20 bugs down to **k candidates**. "
-                    "**Stage 2** sends only those k candidates to the LLM. "
-                    "This avoids the O(n²) token cost of reading everything."
+                    "_\"The auth module keeps throwing errors and users are completely locked out\"_"
+                )
+
+            st.markdown("**Bug history (20 open bugs):**")
+            bug_history = [
+                ("BUG_000", "Payment service timeout on checkout"),
+                ("BUG_001", "Image upload fails for PNG files over 5MB"),
+                ("BUG_002", "Search results not updating after filter change"),
+                ("BUG_003", "Notification emails going to spam folder"),
+                ("BUG_004", "Dark mode toggle not persisting after refresh"),
+                ("BUG_005", "CSV export missing last column of data"),
+                ("BUG_006", "Video player controls disappear on mobile"),
+                ("BUG_007", "Authentication service crash, users cannot access accounts"),
+                ("BUG_008", "Calendar invite timezone showing incorrectly"),
+                ("BUG_009", "Drag and drop broken in Firefox browser"),
+                ("BUG_010", "API rate limit errors appearing too early"),
+                ("BUG_011", "Profile picture not updating after upload"),
+                ("BUG_012", "Markdown rendering broken in comment section"),
+                ("BUG_013", "Two factor auth codes not being sent via SMS"),
+                ("BUG_014", "Report generation freezes on large datasets"),
+                ("BUG_015", "Autocomplete suggestions showing deleted items"),
+                ("BUG_016", "Webhook delivery failing with 502 error"),
+                ("BUG_017", "Graph tooltips overlapping on small screens"),
+                ("BUG_018", "Session expiry happening too quickly"),
+                ("BUG_019", "Database migration script failing on Postgres 15"),
+            ]
+            import pandas as pd
+            bug_df = pd.DataFrame(bug_history, columns=["ID", "Description"])
+
+            def highlight_true_match(row):
+                if row["ID"] == "BUG_007":
+                    return ["background-color: #fff3cd; color: black; font-weight: bold"] * len(row)
+                return [""] * len(row)
+
+            st.dataframe(
+                bug_df.style.apply(highlight_true_match, axis=1),
+                use_container_width=True,
+                hide_index=True,
+                height=280,
+            )
+
+            st.markdown(
+                "We simulate a queue of **20 open bugs**. A new message arrives and we need to find which "
+                "bug it belongs to. Instead of sending all 20 to the LLM, Stage 1 uses a cheap vector search "
+                "to shortlist the top **k** candidates. Stage 2 passes only those k bugs to the LLM. "
+                "The sweet spot is the smallest k where the answer is still correct and the token budget stays under 10%."
+            )
+            with st.container(border=True):
+                st.markdown(
+                    "**Stage 1** — vector search narrows 20 bugs → k candidates  \n"
+                    "**Stage 2** — LLM reads only those k candidates  \n"
+                    "**Goal** — find the smallest k that is still correct (avoids O(n²) token cost)"
                 )
 
         with right:
@@ -263,10 +313,28 @@ with tab2:
                 fig.add_vline(x=sweet_k, line_dash="dot", line_color=YELLOW,
                               annotation_text=f"Sweet spot k={sweet_k}", annotation_position="top right")
             fig.update_layout(
-                title="Accuracy vs Token Budget Trade-off",
-                xaxis=dict(title="k (candidates)", tickvals=k_vals),
-                yaxis=dict(title="%", range=[-5, 110]),
-                **CHART_LAYOUT,
+                title=dict(text="Accuracy vs Token Budget Trade-off", font=dict(color="black")),
+                paper_bgcolor="white",
+                plot_bgcolor="white",
+                font=dict(family="sans-serif", size=13, color="black"),
+                xaxis=dict(
+                    title=dict(text="k (candidates)", font=dict(color="black")),
+                    tickvals=k_vals,
+                    tickfont=dict(color="black"),
+                    tickcolor="black",
+                    showline=True,
+                    linecolor="black",
+                ),
+                yaxis=dict(
+                    title=dict(text="%", font=dict(color="black")),
+                    range=[-5, 110],
+                    tickfont=dict(color="black"),
+                    tickcolor="black",
+                    showline=True,
+                    linecolor="black",
+                ),
+                legend=dict(font=dict(color="black")),
+                margin=dict(l=40, r=40, t=50, b=40),
             )
             st.plotly_chart(fig, use_container_width=True)
 
@@ -278,7 +346,7 @@ with tab2:
                     styles = [f"background-color: #fff3cd; color: black"] * len(row)
                 idx = list(row.index)
                 pass_val = row["Pass"]
-                styles[idx.index("Pass")] = f"background-color: {'#d4edda' if pass_val == 'PASS' else '#f8d7da'}; color: black"
+                styles[idx.index("Pass")] = f"background-color: {'#89B88C' if pass_val == 'PASS' else '#d28289'}; color: black"
                 return styles
 
             table_rows = []
@@ -317,6 +385,14 @@ with tab3:
             m2.metric("Majority vote accuracy", f"{data['majority_vote_accuracy'] * 100:.1f}%")
             m3.metric("MV hallucination rate (conflicts)", f"{data['mv_hallucination_rate_on_conflicts'] * 100:.1f}%")
 
+            st.markdown(
+                "We test **8 real-world scenarios** where Slack and Discord report different bug statuses. "
+                "**Majority vote** simulates an LLM picking whichever source it finds more convincing — "
+                "essentially guessing when the signals conflict. "
+                "**Deterministic** resolves conflicts by calling the GitHub deploy API for the ground truth. "
+                "The hypothesis is that grounding beats guessing every time."
+            )
+
             st.divider()
             conf = data["conflict_scenarios"]
             total = data["total_scenarios"]
@@ -350,10 +426,24 @@ with tab3:
                 textposition="inside",
             ))
             fig.update_layout(
-                title="Decision Accuracy by Scenario",
+                title=dict(text="Decision Accuracy by Scenario", font=dict(color="black")),
                 barmode="group",
-                yaxis=dict(showticklabels=False, title=""),
-                **CHART_LAYOUT,
+                paper_bgcolor="white",
+                plot_bgcolor="white",
+                font=dict(family="sans-serif", size=13, color="black"),
+                xaxis=dict(
+                    tickfont=dict(color="black"),
+                    tickcolor="black",
+                    showline=True,
+                    linecolor="black",
+                ),
+                yaxis=dict(
+                    showticklabels=False,
+                    title="",
+                    showline=False,
+                ),
+                legend=dict(font=dict(color="black")),
+                margin=dict(l=40, r=40, t=50, b=40),
             )
             st.plotly_chart(fig, use_container_width=True)
 
@@ -364,8 +454,8 @@ with tab3:
                 idx = list(row.index)
                 mvc = row["MV Correct"]
                 dc = row["Det Correct"]
-                styles[idx.index("MV Correct")] = f"background-color: {'#d4edda' if mvc == '✓' else '#f8d7da'}; color: black"
-                styles[idx.index("Det Correct")] = f"background-color: {'#d4edda' if dc == '✓' else '#f8d7da'}; color: black"
+                styles[idx.index("MV Correct")] = f"background-color: {'#89B88C' if mvc == '✓' else '#d28289'}; color: black"
+                styles[idx.index("Det Correct")] = f"background-color: {'#89B88C' if dc == '✓' else '#d28289'}; color: black"
                 return styles
 
             table_rows = []

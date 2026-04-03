@@ -5,7 +5,7 @@
       "name": "Coreference Linking",
       "hypothesis": "Blackboard Coreference Hypothesis",
       "pass": true,
-      "key_metric": 1.0,
+      "key_metric": 0.8214,
       "key_metric_label": "Semantic Accuracy"
     },
     {
@@ -22,7 +22,7 @@
       "hypothesis": "Deterministic Grounding Hypothesis",
       "pass": true,
       "deterministic_accuracy": 1.0,
-      "majority_vote_accuracy": 0.5
+      "majority_vote_accuracy": 0.625
     }
   ]
 }
