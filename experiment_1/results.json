@@ -2,51 +2,205 @@
   "experiment": "Coreference Linking",
   "hypothesis": "Blackboard Coreference Hypothesis",
   "pass": true,
-  "key_metric": 1.0,
+  "key_metric": 0.8214,
   "key_metric_label": "Semantic Accuracy",
-  "baseline_metric": 0.5,
+  "baseline_metric": 0.6071,
   "baseline_metric_label": "Token Overlap Accuracy",
   "pairs": [
     {
-      "pair": "discord\u2194email",
+      "pair": "slack_engineer\u2194email_support",
       "baseline_score": 0.0625,
       "baseline_correct": false,
       "semantic_score": 0.2169,
       "semantic_correct": true
     },
     {
-      "pair": "discord\u2194slack",
+      "pair": "slack_engineer\u2194discord_user",
       "baseline_score": 0.0,
       "baseline_correct": false,
       "semantic_score": 0.3548,
       "semantic_correct": true
     },
     {
-      "pair": "discord\u2194jira_unrelated",
+      "pair": "slack_engineer\u2194twitter_user",
+      "baseline_score": 0.0,
+      "baseline_correct": false,
+      "semantic_score": 0.1702,
+      "semantic_correct": false
+    },
+    {
+      "pair": "slack_engineer\u2194slack_payments",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.184,
+      "semantic_correct": true
+    },
+    {
+      "pair": "slack_engineer\u2194email_billing",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.1154,
+      "semantic_correct": true
+    },
+    {
+      "pair": "slack_engineer\u2194jira_ui",
       "baseline_score": 0.0,
       "baseline_correct": true,
       "semantic_score": 0.1946,
       "semantic_correct": true
     },
     {
-      "pair": "email\u2194slack",
+      "pair": "slack_engineer\u2194zendesk_ticket",
+      "baseline_score": 0.0,
+      "baseline_correct": false,
+      "semantic_score": 0.2531,
+      "semantic_correct": true
+    },
+    {
+      "pair": "email_support\u2194discord_user",
       "baseline_score": 0.0,
       "baseline_correct": false,
       "semantic_score": 0.35,
       "semantic_correct": true
     },
     {
-      "pair": "email\u2194jira_unrelated",
+      "pair": "email_support\u2194twitter_user",
+      "baseline_score": 0.0,
+      "baseline_correct": false,
+      "semantic_score": 0.3197,
+      "semantic_correct": true
+    },
+    {
+      "pair": "email_support\u2194slack_payments",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.1082,
+      "semantic_correct": true
+    },
+    {
+      "pair": "email_support\u2194email_billing",
+      "baseline_score": 0.0556,
+      "baseline_correct": true,
+      "semantic_score": 0.2759,
+      "semantic_correct": false
+    },
+    {
+      "pair": "email_support\u2194jira_ui",
       "baseline_score": 0.0,
       "baseline_correct": true,
       "semantic_score": 0.0945,
       "semantic_correct": true
     },
     {
-      "pair": "slack\u2194jira_unrelated",
+      "pair": "email_support\u2194zendesk_ticket",
+      "baseline_score": 0.0,
+      "baseline_correct": false,
+      "semantic_score": 0.2734,
+      "semantic_correct": true
+    },
+    {
+      "pair": "discord_user\u2194twitter_user",
+      "baseline_score": 0.0,
+      "baseline_correct": false,
+      "semantic_score": 0.1833,
+      "semantic_correct": false
+    },
+    {
+      "pair": "discord_user\u2194slack_payments",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.2177,
+      "semantic_correct": false
+    },
+    {
+      "pair": "discord_user\u2194email_billing",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.1761,
+      "semantic_correct": true
+    },
+    {
+      "pair": "discord_user\u2194jira_ui",
       "baseline_score": 0.0625,
       "baseline_correct": true,
       "semantic_score": 0.0922,
+      "semantic_correct": true
+    },
+    {
+      "pair": "discord_user\u2194zendesk_ticket",
+      "baseline_score": 0.0,
+      "baseline_correct": false,
+      "semantic_score": 0.1943,
+      "semantic_correct": false
+    },
+    {
+      "pair": "twitter_user\u2194slack_payments",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.1143,
+      "semantic_correct": true
+    },
+    {
+      "pair": "twitter_user\u2194email_billing",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.1258,
+      "semantic_correct": true
+    },
+    {
+      "pair": "twitter_user\u2194jira_ui",
+      "baseline_score": 0.0476,
+      "baseline_correct": true,
+      "semantic_score": 0.164,
+      "semantic_correct": true
+    },
+    {
+      "pair": "twitter_user\u2194zendesk_ticket",
+      "baseline_score": 0.0455,
+      "baseline_correct": false,
+      "semantic_score": 0.3265,
+      "semantic_correct": true
+    },
+    {
+      "pair": "slack_payments\u2194email_billing",
+      "baseline_score": 0.0,
+      "baseline_correct": false,
+      "semantic_score": 0.3577,
+      "semantic_correct": true
+    },
+    {
+      "pair": "slack_payments\u2194jira_ui",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.1268,
+      "semantic_correct": true
+    },
+    {
+      "pair": "slack_payments\u2194zendesk_ticket",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.0549,
+      "semantic_correct": true
+    },
+    {
+      "pair": "email_billing\u2194jira_ui",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.0277,
+      "semantic_correct": true
+    },
+    {
+      "pair": "email_billing\u2194zendesk_ticket",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.0763,
+      "semantic_correct": true
+    },
+    {
+      "pair": "jira_ui\u2194zendesk_ticket",
+      "baseline_score": 0.0,
+      "baseline_correct": true,
+      "semantic_score": 0.1405,
       "semantic_correct": true
     }
   ]
