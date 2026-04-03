@@ -14,14 +14,14 @@ YELLOW = "#F39C12"
 CHART_LAYOUT = dict(
     paper_bgcolor="white",
     plot_bgcolor="white",
-    font=dict(family="sans-serif", size=13),
+    font=dict(family="sans-serif", size=13, color="black"),
     margin=dict(l=40, r=40, t=50, b=40),
 )
 
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Holistic Blocker Understanding — Results Dashboard",
+    page_title="Holistic Blocker Understanding - Results Dashboard",
     page_icon="🧠",
     layout="wide",
 )
@@ -103,14 +103,23 @@ with tab1:
                 delta=f"{(data['key_metric'] - data['baseline_metric']) * 100:+.1f}% vs baseline",
             )
 
+            st.markdown(
+                "8 messages spanning 3 bug clusters (BUG_A auth failure, BUG_B payment failure, BUG_C UI) "
+                "were fed to both methods. The semantic model uses cosine similarity threshold **0.20** to decide "
+                "whether two messages describe the same bug."
+            )
             st.markdown("**Mock messages used:**")
             msg_rows = [
-                {"Channel": "discord", "Message": "NullPointerException at auth_service.py line 142, uid=None"},
-                {"Channel": "email", "Message": "Users cannot log in at all since this morning, totally broken"},
-                {"Channel": "slack", "Message": "Reverted PR #4421 — broke the authentication pipeline"},
-                {"Channel": "jira", "Message": "UI misalignment on the dashboard widget for Safari v17"},
+                {"Channel": "slack_engineer", "Bug": "BUG_A", "Message": "NullPointerException at auth_service.py line 142, uid=None"},
+                {"Channel": "email_support",  "Bug": "BUG_A", "Message": "Users cannot log in at all since this morning, totally broken"},
+                {"Channel": "discord_user",   "Bug": "BUG_A", "Message": "Reverted PR #4421 — broke the authentication pipeline"},
+                {"Channel": "twitter_user",   "Bug": "BUG_A", "Message": "hey @company your app wont let me in, been trying for an hour"},
+                {"Channel": "zendesk_ticket", "Bug": "BUG_A", "Message": "Getting a white screen after entering my password, iOS app"},
+                {"Channel": "slack_payments", "Bug": "BUG_B", "Message": "Stripe webhook is returning 422, orders not completing"},
+                {"Channel": "email_billing",  "Bug": "BUG_B", "Message": "Customers reporting they cannot complete checkout, cards declined"},
+                {"Channel": "jira_ui",        "Bug": "BUG_C", "Message": "UI misalignment on the dashboard widget for Safari v17"},
             ]
-            rows_display = [{"Channel": r["Channel"], "Message": r["Message"][:50] + "…"} for r in msg_rows]
+            rows_display = [{"Channel": r["Channel"], "Bug": r["Bug"], "Message": r["Message"][:48] + "…"} for r in msg_rows]
             st.dataframe(rows_display, use_container_width=True, hide_index=True)
 
         with right:
@@ -130,14 +139,44 @@ with tab1:
                 y=[p["semantic_score"] for p in pairs],
                 marker_color=BLUE,
             ))
-            fig.add_hline(y=0.72, line_dash="dash", line_color=YELLOW,
-                          annotation_text="Threshold 0.72", annotation_position="top right")
+            fig.add_hline(y=0.20, line_dash="dash", line_color=YELLOW,
+                          annotation_text="Threshold 0.20", annotation_position="top right")
             fig.update_layout(
-                title="Similarity Scores by Method",
-                barmode="group",
-                yaxis=dict(title="Score", range=[0, 1]),
-                **CHART_LAYOUT,
-            )
+            title=dict(
+                text="Similarity Scores by Method",
+                font=dict(color="black")
+            ),
+            barmode="group",
+            height=500,
+            paper_bgcolor="white",
+            plot_bgcolor="white",
+            # Global font setting to catch anything else
+            font=dict(family="sans-serif", size=13, color="black"),
+            yaxis=dict(
+                title=dict(text="Score", font=dict(color="black")), 
+                range=[0, 0.6], 
+                tickfont=dict(size=10, color="black"),
+                tickcolor="black",
+                showline=True,
+                linecolor="black"
+            ),
+            xaxis=dict(
+                tickangle=-45, 
+                tickfont=dict(size=9, color="black"),
+                tickcolor="black",
+                showline=True,
+                linecolor="black"
+            ),
+            legend=dict(
+                orientation="h", 
+                yanchor="bottom", 
+                y=1.02, 
+                xanchor="right", 
+                x=1,
+                font=dict(color="black")
+            ),
+            margin=dict(l=40, r=40, t=50, b=160),
+        )
             st.plotly_chart(fig, use_container_width=True)
 
             # Results table with color
@@ -162,10 +201,10 @@ with tab1:
             def style_row(row):
                 styles = [""] * len(row)
                 idx = list(row.index)
-                b_c = row["_b_correct"]
-                s_c = row["_s_correct"]
-                styles[idx.index("Baseline Result")] = f"background-color: {'#d4edda' if b_c else '#f8d7da'}"
-                styles[idx.index("Semantic Result")] = f"background-color: {'#d4edda' if s_c else '#f8d7da'}"
+                b_c = row["Baseline Result"] == "CORRECT"
+                s_c = row["Semantic Result"] == "CORRECT"
+                styles[idx.index("Baseline Result")] = f"background-color: {"#89B88C" if b_c else "#d28289"}; color: white"
+                styles[idx.index("Semantic Result")] = f"background-color: {'#89B88C' if s_c else '#d28289'}; color: white"
                 return styles
 
             display_df = df.drop(columns=["_b_correct", "_s_correct"])
@@ -236,10 +275,10 @@ with tab2:
             def style_k_table(row):
                 styles = [""] * len(row)
                 if row["k"] == sweet_k:
-                    styles = [f"background-color: #fff3cd"] * len(row)
+                    styles = [f"background-color: #fff3cd; color: black"] * len(row)
                 idx = list(row.index)
                 pass_val = row["Pass"]
-                styles[idx.index("Pass")] = f"background-color: {'#d4edda' if pass_val == 'PASS' else '#f8d7da'}"
+                styles[idx.index("Pass")] = f"background-color: {'#d4edda' if pass_val == 'PASS' else '#f8d7da'}; color: black"
                 return styles
 
             table_rows = []
@@ -325,8 +364,8 @@ with tab3:
                 idx = list(row.index)
                 mvc = row["MV Correct"]
                 dc = row["Det Correct"]
-                styles[idx.index("MV Correct")] = f"background-color: {'#d4edda' if mvc == '✓' else '#f8d7da'}"
-                styles[idx.index("Det Correct")] = f"background-color: {'#d4edda' if dc == '✓' else '#f8d7da'}"
+                styles[idx.index("MV Correct")] = f"background-color: {'#d4edda' if mvc == '✓' else '#f8d7da'}; color: black"
+                styles[idx.index("Det Correct")] = f"background-color: {'#d4edda' if dc == '✓' else '#f8d7da'}; color: black"
                 return styles
 
             table_rows = []
